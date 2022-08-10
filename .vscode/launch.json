@@ -1,0 +1,47 @@
+{
+    "version": "0.1.0",
+    "configurations": [
+        {
+            "name": "Develop",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "outputCapture": "std",
+            "restart": true,
+            "preLaunchTask": "clean",
+            "console": "integratedTerminal",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**", "node_modules/**"],
+            "runtimeArgs": ["run-script", "dev"]
+        },
+        {
+            "name": "Develop CLI",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "runtimeExecutable": "npm",
+            "outputCapture": "std",
+            "restart": true,
+            "preLaunchTask": "clean",
+            "console": "integratedTerminal",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**", "node_modules/**"],
+            "runtimeArgs": ["run-script", "dev:cli"]
+        },
+        {
+            "name": "Build Develop",
+            "request": "launch",
+            "type": "node",
+            "program": "${workspaceFolder}/esbuild.config.js",
+            "args": ["--watch"],
+            "cwd": "${workspaceFolder}",
+            "outputCapture": "std",
+            "restart": true,
+            "preLaunchTask": "",
+            "console": "integratedTerminal",
+            "autoAttachChildProcesses": true,
+            "skipFiles": ["<node_internals>/**", "node_modules/**"]
+        }
+    ]
+}

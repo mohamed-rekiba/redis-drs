@@ -1,0 +1,26 @@
+{
+    "workbench.iconTheme": "material-icon-theme",
+    "editor.fontFamily": "'Dank Mono', 'Fira Code','Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
+    "editor.fontSize": 20,
+    "terminal.integrated.fontFamily": "'Dank Mono', 'Fira Code','Droid Sans Mono', 'monospace', monospace, 'Droid Sans Fallback'",
+    "terminal.integrated.fontSize": 18,
+    "terminal.integrated.shellIntegration.enabled": true,
+    "workbench.colorTheme": "Night Owl",
+    "editor.formatOnSave": true,
+    "editor.showFoldingControls": "always",
+    "editor.folding": true,
+    "editor.foldingStrategy": "indentation",
+    "editor.inlineSuggest.enabled": true,
+    "editor.guides.bracketPairs": "active",
+    "editor.bracketPairColorization.enabled": true,
+    "files.exclude": {
+        "node_modules": true,
+        ".husky": true
+    },
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "search.exclude": {
+        "**/.git": true,
+        "**/node_modules": true,
+        "**/lib": true
+    }
+}

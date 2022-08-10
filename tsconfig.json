@@ -1,0 +1,36 @@
+{
+    "compilerOptions": {
+        "sourceMap": true,
+        "outDir": "lib",
+        "rootDir": ".",
+        "baseUrl": ".",
+        "strict": true,
+        "target": "es2018",
+        "module": "commonjs",
+        "lib": ["esnext"],
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "esModuleInterop": true,
+        "noEmit": false,
+        "noImplicitAny": false,
+        "experimentalDecorators": true,
+        "allowSyntheticDefaultImports": true,
+        "allowJs": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "typeRoots": [
+            "./node_modules/@types",
+            "./node_modules/ioredis",
+            "./typings"
+        ],
+        "paths": {}
+    },
+    "exclude": [
+        "lib",
+        "bundle",
+        "tests",
+        "esbuild.config.js",
+        "jest.config.js",
+        "node_modules"
+    ]
+}

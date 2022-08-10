@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "esbenp.prettier-vscode",
+        "eamodio.gitlens",
+        "loiane.ts-extension-pack",
+        "visualstudioexptteam.vscodeintellicode",
+        "sdras.night-owl",
+        "pkief.material-icon-theme"
+    ]
+}
