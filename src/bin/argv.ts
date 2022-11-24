@@ -25,6 +25,11 @@ const _yargs = yargs(hideBin(process.argv))
                 description:
                     'Redis key pattern, for example `username:*` and `*` means all keys.',
             },
+            b: {
+                alias: 'bulkSize',
+                default: 1000,
+                description: 'Count of item to get in parallel.',
+            },
         },
     )
     .command('restore', 'Restore from csv dump file.', {
@@ -68,6 +73,11 @@ const _yargs = yargs(hideBin(process.argv))
             default: '*',
             description:
                 'Redis key pattern, for example `username:*` and `*` means all keys.',
+        },
+        b: {
+            alias: 'bulkSize',
+            default: 1000,
+            description: 'Count of item to sync in parallel.',
         },
         t: {
             alias: 'useTtl',

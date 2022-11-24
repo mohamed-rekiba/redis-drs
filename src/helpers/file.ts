@@ -17,15 +17,16 @@ export function writeStream(filePath: string) {
     const stream = createWriteStream(resolve(filePath));
 
     return {
-        write: (data: any): Promise<void> => {
+        write: async (data: any): Promise<any> => {
+            data = await data;
             if (typeof data === 'object') data = JSON.stringify(data);
 
             if (!stream.write(data + '\r\n')) {
                 return new Promise((res, rej) => {
-                    stream.once('drain', () => res());
+                    stream.once('drain', () => res(data));
                 });
             } else {
-                return Promise.resolve();
+                return Promise.resolve(data);
             }
         },
         end: () => stream.end(),
@@ -37,15 +38,16 @@ export function readStream({
     bulkSize = 1000,
     callback,
 }: IReadStream): {
-    events: EventEmitter;
+    emitter: EventEmitter;
     reader: () => Promise<void>;
 } {
-    const events = new EventEmitter();
+    const emitter = new EventEmitter();
+
     const reader = () => {
         return new Promise<void>(async (res, rej) => {
             const _filePath = resolve(filePath);
             let linesCount = await countLines(_filePath);
-            events.emit('linesCount', linesCount);
+            emitter.emit('linesCount', linesCount);
 
             let index = 0;
             let pool: Promise<void>[] = [];
@@ -60,7 +62,7 @@ export function readStream({
                         // Skip empty lines
                         if (!line) return;
 
-                        events.emit('line', index, line);
+                        emitter.emit('line', index, line);
 
                         pool.push(
                             callback(tempIndex, line).catch((error) =>
@@ -89,20 +91,20 @@ export function readStream({
                 );
 
             stream.on('error', (error) => {
-                events.emit('error', error);
-                events.removeAllListeners();
+                emitter.emit('error', error);
+                emitter.removeAllListeners();
                 rej(error);
             });
 
             stream.on('end', async () => {
-                events.emit('end', true);
-                events.removeAllListeners();
+                emitter.emit('end', true);
+                emitter.removeAllListeners();
                 res();
             });
         });
     };
 
-    return { events, reader };
+    return { emitter, reader };
 }
 
 export const countLines = (filePath): Promise<number> => {

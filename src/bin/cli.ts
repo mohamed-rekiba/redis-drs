@@ -9,13 +9,19 @@ import * as IRedisDRS from './model';
 
     switch (command) {
         case 'dump':
-            dump(<IRedisDRS.dump>{ filePath, uri, pattern });
+            dump(<IRedisDRS.dump>{ filePath, uri, pattern, bulkSize });
             break;
         case 'restore':
-            restore(<IRedisDRS.restore>{ filePath, uri, useTtl, bulkSize });
+            restore(<IRedisDRS.restore>{ filePath, uri, bulkSize, useTtl });
             break;
         case 'sync':
-            sync(<IRedisDRS.sync>{ sourceUri, targetUri, pattern, useTtl });
+            sync(<IRedisDRS.sync>{
+                sourceUri,
+                targetUri,
+                pattern,
+                bulkSize,
+                useTtl,
+            });
             break;
         default:
             break;

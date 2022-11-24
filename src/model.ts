@@ -21,10 +21,12 @@ export interface item {
 export class dump {
     filePath: string;
     pattern?: string = '*';
+    bulkSize?: number = 1000;
 
     constructor(options: dump) {
         this.filePath = options.filePath;
         this.pattern = options.pattern || this.pattern;
+        this.bulkSize = options.bulkSize || this.bulkSize;
     }
 }
 
@@ -44,11 +46,13 @@ export class sync {
     targetRedisOptions: options;
     pattern?: string = '*';
     useTtl?: boolean;
+    bulkSize?: number = 1000;
 
     constructor(options: sync) {
         this.targetRedisOptions = options.targetRedisOptions;
         this.pattern = options.pattern || this.pattern;
         this.useTtl = options.useTtl;
+        this.bulkSize = options.bulkSize || this.bulkSize;
     }
 }
 

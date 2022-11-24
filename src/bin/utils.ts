@@ -19,8 +19,8 @@ export const dump = async (options: IRedisDRS.dump) => {
         logger,
     } = new IRedisDRS.dump(options);
     const redis = new RedisDRS({ path, logger });
-    const data = redis.dump({ filePath, pattern });
-    const total = (await data.next()).value as number;
+    const data = await redis.dump({ filePath, pattern });
+    const total = (await data.next()).value as any;
     const progress = progressBar('DUMP', total);
 
     for await (const val of data) progress?.tick();
@@ -56,7 +56,7 @@ export const sync = async (options: IRedisDRS.sync) => {
         pattern,
         useTtl,
     });
-    const total = (await data.next()).value as number;
+    const total = (await data.next()).value as any;
     const progress = progressBar('SYNC', total);
 
     for await (const val of data) progress?.tick();

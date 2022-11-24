@@ -1,6 +1,9 @@
 import Redis, { Pipeline } from 'ioredis';
+import EventEmitter from 'events';
 import { readStream, writeStream } from './helpers/file';
 import * as IRedisDRS from './model';
+
+EventEmitter.defaultMaxListeners = 0;
 
 export class RedisDRS extends Redis {
     public version: string;
@@ -76,9 +79,10 @@ export class RedisDRS extends Redis {
     }
 
     async setOne(
-        item: IRedisDRS.item,
+        item: IRedisDRS.item | Promise<IRedisDRS.item>,
         useTtl?: boolean,
     ): Promise<string | undefined> {
+        item = await item;
         let value = item.value;
         const p = <Pipeline & { multi: any }>this.pipeline();
         p.del(item.key);
@@ -131,25 +135,47 @@ export class RedisDRS extends Redis {
         return error?.at(0)?.message;
     }
 
-    async *gelAll({
+    async gelAll({
         action = 'GET_ALL',
         pattern = '*',
+        bulkSize = 1000,
     }: {
         action?: string;
         pattern?: string;
+        bulkSize?: number;
     }) {
-        const keys = await this.keys(pattern);
-        yield keys;
-        for (const key of keys) {
-            try {
-                yield await this.getOne(key);
-            } catch (error: any) {
-                const message = error?.message || error?.stack || error;
-                this.logger(
-                    `[${action}] error while get [KEY:${key}] [ERROR:${message}]`,
-                );
+        const emitter = new EventEmitter();
+
+        const getData = async () => {
+            let keys = await this.keys(pattern);
+            emitter.emit('keys', keys);
+            let pool: Promise<IRedisDRS.item>[] = [];
+
+            for (const key of keys) {
+                try {
+                    const data = this.getOne(key);
+                    emitter.emit('data', data);
+                    pool.push(data);
+
+                    if (pool.length >= bulkSize) {
+                        await Promise.all(pool);
+                        pool = [];
+                    }
+                } catch (error: any) {
+                    const message = error?.message || error?.stack || error;
+                    emitter.emit('error', message);
+                    emitter.removeAllListeners();
+                    this.logger(
+                        `[${action}] error while get [KEY:${key}] [ERROR:${message}]`,
+                    );
+                }
             }
-        }
+
+            await Promise.all(pool);
+            emitter.emit('end');
+        };
+
+        return { getData, emitter };
     }
 
     // @ts-ignore
@@ -159,24 +185,54 @@ export class RedisDRS extends Redis {
         await this.init();
         this.logger(`[${action}] redis version: ${this.version}`);
 
-        const { filePath, pattern } = new IRedisDRS.dump(options);
+        const { filePath, pattern, bulkSize } = new IRedisDRS.dump(options);
         const stream = writeStream(filePath);
 
         this.logger(`[${action}] Get all keys for pattern: ${pattern}`);
-        const data = this.gelAll({ action, pattern });
 
-        const keys = (await data.next()).value as string[];
-        yield keys.length;
-        this.logger(`[${action}] Total keys: ${keys.length}`);
+        const { getData, emitter } = await this.gelAll({
+            action,
+            pattern,
+            bulkSize,
+        });
+        const pool: Promise<void>[] = [];
+        let dataPool: Promise<number | IRedisDRS.item | void>[] = [];
+        let streamPool: Promise<void>[] = [];
+        let resolve: () => void;
+        let promise = new Promise((r) => (resolve = <typeof resolve>r));
+        let done = false;
 
-        for await (const val of data) {
-            await stream.write(val);
-            yield val;
+        emitter
+            .on('keys', (keys) => {
+                dataPool.push(keys.length);
+                this.logger(`[${action}] Total keys: ${keys.length}`);
+            })
+            .on('data', async (data) => {
+                dataPool.push(data);
+                streamPool.push(stream.write(data));
+                resolve();
+                promise = new Promise((r) => (resolve = <typeof resolve>r));
+            })
+            .on('error', (error) => {
+                done = true;
+                this.logger(`[${action}] Failed with error: ${error}`);
+            })
+            .on('end', async () => {
+                await Promise.allSettled(streamPool);
+                await Promise.allSettled(pool);
+                done = true;
+                resolve();
+                stream.end();
+                this.logger(`[${action}] Finished successfully`);
+            });
+
+        pool.push(getData());
+
+        while (!done) {
+            await promise;
+            yield* dataPool;
+            dataPool = [];
         }
-
-        stream.end();
-
-        this.logger(`[${action}] Finished successfully`);
     }
 
     // @ts-ignore
@@ -189,17 +245,30 @@ export class RedisDRS extends Redis {
         const { filePath, useTtl, bulkSize } = new IRedisDRS.restore(options);
         const callback = async (index: number, line: string) => {
             const item = <IRedisDRS.item>JSON.parse(line);
-            await this.setOne(item, useTtl);
+            try {
+                await this.setOne(item, useTtl);
+            } catch (error: any) {
+                const message = error?.message || error?.stack || error;
+                emitter.emit('error', message);
+                emitter.removeAllListeners();
+                this.logger(
+                    `[${action}] error while set [LINE:${line}] [ERROR:${message}]`,
+                );
+            }
         };
 
         const pool: Promise<any>[] = [];
-        const { events, reader } = readStream({ filePath, bulkSize, callback });
+        const { emitter, reader } = readStream({
+            filePath,
+            bulkSize,
+            callback,
+        });
         let results: (string | number)[] = [];
         let resolve: () => void;
         let promise = new Promise((r) => (resolve = <typeof resolve>r));
         let done = false;
 
-        events
+        emitter
             .on('linesCount', (linesCount) => {
                 results.push(linesCount);
                 this.logger(`[${action}] Total keys: ${linesCount}`);
@@ -236,25 +305,69 @@ export class RedisDRS extends Redis {
         await this.init();
         this.logger(`[${action}] redis version: ${this.version}`);
 
-        const { targetRedisOptions, pattern, useTtl } = new IRedisDRS.sync(
-            options,
-        );
+        const { targetRedisOptions, pattern, bulkSize, useTtl } =
+            new IRedisDRS.sync(options);
 
         const targetRedis = new RedisDRS(targetRedisOptions);
 
         this.logger(`[${action}] Get all keys for pattern: ${pattern}`);
-        const data = this.gelAll({ action, pattern });
-        const keys = (await data.next()).value as string[];
-        yield keys.length;
-        this.logger(`[${action}] Total keys: ${keys.length}`);
 
-        for await (const item of data) {
-            await targetRedis.setOne(<IRedisDRS.item>item, useTtl);
-            yield item;
+        const { getData, emitter } = await this.gelAll({
+            action,
+            pattern,
+            bulkSize,
+        });
+        const pool: Promise<void>[] = [];
+        let dataPool: Promise<number | IRedisDRS.item | void>[] = [];
+        let syncPool: Promise<any>[] = [];
+        let resolve: () => void;
+        let promise = new Promise((r) => (resolve = <typeof resolve>r));
+        let done = false;
+
+        emitter
+            .on('keys', (keys) => {
+                dataPool.push(keys.length);
+                this.logger(`[${action}] Total keys: ${keys.length}`);
+            })
+            .on('data', async (data) => {
+                dataPool.push(data);
+                syncPool.push(
+                    targetRedis
+                        .setOne(<IRedisDRS.item>data, useTtl)
+                        .catch(async (error) => {
+                            data = JSON.stringify(await data);
+                            const message =
+                                error?.message || error?.stack || error;
+                            emitter.emit('error', message);
+                            emitter.removeAllListeners();
+                            this.logger(
+                                `[${action}] error while set [DATA:${data}] [ERROR:${message}]`,
+                            );
+                        }),
+                );
+                resolve();
+                promise = new Promise((r) => (resolve = <typeof resolve>r));
+            })
+            .on('error', (error) => {
+                done = true;
+                this.logger(`[${action}] Failed with error: ${error}`);
+            })
+            .on('end', async () => {
+                await Promise.allSettled(syncPool);
+                await Promise.allSettled(pool);
+                done = true;
+                resolve();
+                targetRedis.disconnect();
+
+                this.logger(`[${action}] Finished successfully`);
+            });
+
+        pool.push(getData());
+
+        while (!done) {
+            await promise;
+            yield* dataPool;
+            dataPool = [];
         }
-
-        this.logger(`[${action}] Finished successfully`);
-
-        targetRedis.disconnect();
     }
 }
