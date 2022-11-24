@@ -16,10 +16,11 @@ export const dump = async (options: IRedisDRS.dump) => {
         filePath,
         uri: path,
         pattern,
+        bulkSize,
         logger,
     } = new IRedisDRS.dump(options);
     const redis = new RedisDRS({ path, logger });
-    const data = await redis.dump({ filePath, pattern });
+    const data = await redis.dump({ filePath, pattern, bulkSize });
     const total = (await data.next()).value as any;
     const progress = progressBar('DUMP', total);
 
@@ -47,13 +48,14 @@ export const restore = async (options: IRedisDRS.restore) => {
 };
 
 export const sync = async (options: IRedisDRS.sync) => {
-    const { sourceUri, targetUri, pattern, useTtl, logger } =
+    const { sourceUri, targetUri, pattern, bulkSize, useTtl, logger } =
         new IRedisDRS.sync(options);
 
     const redis = new RedisDRS({ path: sourceUri, logger });
     const data = await redis.sync({
         targetRedisOptions: { path: targetUri, logger },
         pattern,
+        bulkSize,
         useTtl,
     });
     const total = (await data.next()).value as any;

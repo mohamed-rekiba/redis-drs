@@ -1,6 +1,6 @@
 {
     "name": "redis-drs",
-    "version": "1.3.3",
+    "version": "1.3.4",
     "description": "redis-drs - A Redis Dump, Restore and Sync Tool",
     "license": "GPL-3.0+",
     "main": "./lib/index.js",
