@@ -163,8 +163,6 @@ export class RedisDRS extends Redis {
                     }
                 } catch (error: any) {
                     const message = error?.message || error?.stack || error;
-                    emitter.emit('error', message);
-                    emitter.removeAllListeners();
                     this.logger(
                         `[${action}] error while get [KEY:${key}] [ERROR:${message}]`,
                     );
@@ -173,6 +171,7 @@ export class RedisDRS extends Redis {
 
             await Promise.all(pool);
             emitter.emit('end');
+            emitter.removeAllListeners();
         };
 
         return { getData, emitter };
@@ -223,6 +222,7 @@ export class RedisDRS extends Redis {
                 resolve();
                 stream.end();
                 this.logger(`[${action}] Finished successfully`);
+                emitter.removeAllListeners();
             });
 
         pool.push(getData());
@@ -285,6 +285,7 @@ export class RedisDRS extends Redis {
                 done = true;
                 resolve();
                 this.logger(`[${action}] Finished successfully`);
+                emitter.removeAllListeners();
             });
 
         pool.push(reader());
@@ -357,6 +358,7 @@ export class RedisDRS extends Redis {
                 targetRedis.disconnect();
 
                 this.logger(`[${action}] Finished successfully`);
+                emitter.removeAllListeners();
             });
 
         pool.push(getData());
