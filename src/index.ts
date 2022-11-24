@@ -214,7 +214,6 @@ export class RedisDRS extends Redis {
                 promise = new Promise((r) => (resolve = <typeof resolve>r));
             })
             .on('error', (error) => {
-                done = true;
                 this.logger(`[${action}] Failed with error: ${error}`);
             })
             .on('end', async () => {
@@ -279,7 +278,6 @@ export class RedisDRS extends Redis {
                 promise = new Promise((r) => (resolve = <typeof resolve>r));
             })
             .on('error', (error) => {
-                done = true;
                 this.logger(`[${action}] Failed with error: ${error}`);
             })
             .on('end', async () => {
@@ -349,7 +347,6 @@ export class RedisDRS extends Redis {
                 promise = new Promise((r) => (resolve = <typeof resolve>r));
             })
             .on('error', (error) => {
-                done = true;
                 this.logger(`[${action}] Failed with error: ${error}`);
             })
             .on('end', async () => {
