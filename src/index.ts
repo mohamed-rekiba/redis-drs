@@ -131,26 +131,43 @@ export class RedisDRS extends Redis {
         return error?.at(0)?.message;
     }
 
-    async *gelAll(pattern: string = '*') {
+    async *gelAll({
+        action = 'GET_ALL',
+        pattern = '*',
+    }: {
+        action?: string;
+        pattern?: string;
+    }) {
         const keys = await this.keys(pattern);
         yield keys;
-        for (const key of keys) yield await this.getOne(key);
+        for (const key of keys) {
+            try {
+                yield await this.getOne(key);
+            } catch (error: any) {
+                const message = error?.message || error?.stack || error;
+                this.logger(
+                    `[${action}] error while get [KEY:${key}] [ERROR:${message}]`,
+                );
+            }
+        }
     }
 
     // @ts-ignore
     async *dump(options: IRedisDRS.dump) {
+        const action = 'DUMP';
+
         await this.init();
+        this.logger(`[${action}] redis version: ${this.version}`);
 
         const { filePath, pattern } = new IRedisDRS.dump(options);
         const stream = writeStream(filePath);
-        this.logger(`[DUMP] redis version: ${this.version}`);
 
-        this.logger(`[DUMP] Get all keys for pattern: ${pattern}`);
-        const data = this.gelAll(pattern);
+        this.logger(`[${action}] Get all keys for pattern: ${pattern}`);
+        const data = this.gelAll({ action, pattern });
 
         const keys = (await data.next()).value as string[];
         yield keys.length;
-        this.logger(`[DUMP] Total keys: ${keys.length}`);
+        this.logger(`[${action}] Total keys: ${keys.length}`);
 
         for await (const val of data) {
             await stream.write(val);
@@ -159,13 +176,15 @@ export class RedisDRS extends Redis {
 
         stream.end();
 
-        this.logger(`[DUMP] Finished successfully`);
+        this.logger(`[${action}] Finished successfully`);
     }
 
     // @ts-ignore
     async *restore(options: IRedisDRS.restore) {
+        const action = 'RESTORE';
+
         await this.init();
-        this.logger(`[RESTORE] redis version: ${this.version}`);
+        this.logger(`[${action}] redis version: ${this.version}`);
 
         const { filePath, useTtl, bulkSize } = new IRedisDRS.restore(options);
         const callback = async (index: number, line: string) => {
@@ -183,7 +202,7 @@ export class RedisDRS extends Redis {
         events
             .on('linesCount', (linesCount) => {
                 results.push(linesCount);
-                this.logger(`[RESTORE] Total keys: ${linesCount}`);
+                this.logger(`[${action}] Total keys: ${linesCount}`);
             })
             .on('line', (index, line) => {
                 results.push(line);
@@ -192,13 +211,13 @@ export class RedisDRS extends Redis {
             })
             .on('error', (error) => {
                 done = true;
-                this.logger(`[RESTORE] Failed with error: ${error}`);
+                this.logger(`[${action}] Failed with error: ${error}`);
             })
             .on('end', async () => {
                 await Promise.allSettled(pool);
                 done = true;
                 resolve();
-                this.logger(`[RESTORE] Finished successfully`);
+                this.logger(`[${action}] Finished successfully`);
             });
 
         pool.push(reader());
@@ -212,8 +231,10 @@ export class RedisDRS extends Redis {
 
     // @ts-ignore
     async *sync(options: IRedisDRS.sync) {
+        const action = 'SYNC';
+
         await this.init();
-        this.logger(`[SYNC] redis version: ${this.version}`);
+        this.logger(`[${action}] redis version: ${this.version}`);
 
         const { targetRedisOptions, pattern, useTtl } = new IRedisDRS.sync(
             options,
@@ -221,18 +242,18 @@ export class RedisDRS extends Redis {
 
         const targetRedis = new RedisDRS(targetRedisOptions);
 
-        this.logger(`[SYNC] Get all keys for pattern: ${pattern}`);
-        const data = this.gelAll(pattern);
+        this.logger(`[${action}] Get all keys for pattern: ${pattern}`);
+        const data = this.gelAll({ action, pattern });
         const keys = (await data.next()).value as string[];
         yield keys.length;
-        this.logger(`[SYNC] Total keys: ${keys.length}`);
+        this.logger(`[${action}] Total keys: ${keys.length}`);
 
         for await (const item of data) {
             await targetRedis.setOne(<IRedisDRS.item>item, useTtl);
             yield item;
         }
 
-        this.logger(`[SYNC] Finished successfully`);
+        this.logger(`[${action}] Finished successfully`);
 
         targetRedis.disconnect();
     }

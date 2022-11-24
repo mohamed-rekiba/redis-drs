@@ -2,10 +2,10 @@
     "compilerOptions": {
         "sourceMap": true,
         "outDir": "lib",
-        "rootDir": ".",
-        "baseUrl": ".",
+        "rootDir": "src",
+        "baseUrl": "src",
         "strict": true,
-        "target": "es2018",
+        "target": "es6",
         "module": "commonjs",
         "lib": ["esnext"],
         "skipLibCheck": true,

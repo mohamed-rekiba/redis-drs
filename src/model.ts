@@ -41,7 +41,7 @@ export class restore {
 }
 
 export class sync {
-    targetRedisOptions: options<any>;
+    targetRedisOptions: options;
     pattern?: string = '*';
     useTtl?: boolean;
 
