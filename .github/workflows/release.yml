@@ -92,7 +92,7 @@ jobs:
 
           echo "🚀 Publishing $PACKAGE_NAME@$PACKAGE_VERSION to npm..."
 
-          npm publish --access public --provenance
+          npm publish --provenance --access public
 
           echo "✅ Successfully published to npm!"
         env:
