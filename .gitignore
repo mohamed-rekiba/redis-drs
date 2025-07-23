@@ -1,4 +1,4 @@
 node_modules
 lib
 bundle
-**/*.csv
+**/new-dump.csv

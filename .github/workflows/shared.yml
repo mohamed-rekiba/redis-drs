@@ -19,6 +19,16 @@ on:
 jobs:
   shared:
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     outputs:
       package-version: ${{ steps.package-info.outputs.version }}
       package-name: ${{ steps.package-info.outputs.name }}
@@ -38,6 +48,14 @@ jobs:
 
       - name: 🔍 Run linter
         run: yarn lint --max-warnings 5
+
+      - name: 🔗 Verify Redis connection
+        run: |
+          echo "🔍 Installing Redis CLI and testing connection..."
+          sudo apt-get update -qq
+          sudo apt-get install -y redis-tools
+          redis-cli -h localhost -p 6379 ping
+          echo "✅ Redis is running and accessible"
 
       - name: 🧪 Run tests
         run: yarn test
