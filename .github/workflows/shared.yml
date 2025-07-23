@@ -1,0 +1,105 @@
+name: Shared Workflow
+
+on:
+  workflow_call:
+    inputs:
+      upload-build:
+        description: "Upload build artifacts for publishing"
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      package-version:
+        description: "Package version from package.json"
+        value: ${{ jobs.shared.outputs.package-version }}
+      package-name:
+        description: "Package name from package.json"
+        value: ${{ jobs.shared.outputs.package-name }}
+
+jobs:
+  shared:
+    runs-on: ubuntu-latest
+    outputs:
+      package-version: ${{ steps.package-info.outputs.version }}
+      package-name: ${{ steps.package-info.outputs.name }}
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "yarn"
+
+      - name: 📚 Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: 🔍 Run linter
+        run: yarn lint --max-warnings 5
+
+      - name: 🧪 Run tests
+        run: yarn test
+
+      - name: 🧹 Clean previous builds
+        run: yarn clean
+
+      - name: 🏗️ Build project
+        run: yarn build
+
+      - name: ✅ Verify build output
+        run: |
+          echo "🔍 Verifying build output..."
+
+          # Check if lib directory exists
+          if [ ! -d "lib" ]; then
+            echo "❌ Build output directory 'lib' not found"
+            exit 1
+          fi
+
+          # Check required files based on package.json
+          MAIN_FILE=$(node -p "require('./package.json').main || 'lib/index.js'")
+          TYPES_FILE=$(node -p "require('./package.json').types || 'lib/index.d.ts'")
+
+          if [ ! -f "$MAIN_FILE" ]; then
+            echo "❌ Main entry point '$MAIN_FILE' not found"
+            exit 1
+          fi
+
+          if [ ! -f "$TYPES_FILE" ]; then
+            echo "❌ Type definitions '$TYPES_FILE' not found"
+            exit 1
+          fi
+
+          # Check CLI binary if exists
+          if node -p "require('./package.json').bin" | grep -q "lib/bin/cli.js"; then
+            if [ ! -f "lib/bin/cli.js" ]; then
+              echo "❌ CLI binary 'lib/bin/cli.js' not found"
+              exit 1
+            fi
+          fi
+
+          echo "✅ Build verification passed - all required files present"
+
+      - name: 📋 Get package information
+        id: package-info
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          NAME=$(node -p "require('./package.json').name")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "📦 Package: $NAME@$VERSION"
+
+      - name: 👀 Preview package contents
+        run: |
+          echo "📋 Files that would be published to npm:"
+          npm pack --dry-run --json | jq -r '.files[].path' | head -20
+
+      - name: 💾 Upload build artifacts
+        if: inputs.upload-build
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-build-${{ steps.package-info.outputs.version }}
+          path: lib/
+          retention-days: 1

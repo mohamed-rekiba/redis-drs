@@ -1,0 +1,118 @@
+name: NPM Version Bump
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - ".github/**"
+      - "docs/**"
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: 🧪 Test before release
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    uses: ./.github/workflows/shared.yml
+
+  create-release:
+    name: 🚀 Create Release
+    needs: test
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use PAT to trigger release workflow
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: 🔍 Check for version bump
+        id: version-check
+        run: |
+          # Get current version and package name
+          CURRENT_VERSION="${{ needs.test.outputs.package-version }}"
+          PACKAGE_NAME="${{ needs.test.outputs.package-name }}"
+
+          # Get last commit message
+          LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+
+          echo "📝 Commit message: $LAST_COMMIT_MSG"
+          echo "📦 Package: $PACKAGE_NAME@$CURRENT_VERSION"
+
+          # Check if commit message indicates version bump
+          if [[ "$LAST_COMMIT_MSG" == *"bump:"* ]]; then
+            echo "version_bump=true" >> $GITHUB_OUTPUT
+            echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+            echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+            echo "✅ Version bump detected in commit message"
+          else
+            echo "version_bump=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No version bump detected - skipping release"
+          fi
+
+      - name: 🏷️ Create Git Tag
+        if: steps.version-check.outputs.version_bump == 'true'
+        run: |
+          VERSION="${{ steps.version-check.outputs.current_version }}"
+          TAG_NAME="v${VERSION}"
+
+          echo "🏷️ Creating tag: $TAG_NAME"
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      - name: 📋 Generate Release Notes
+        if: steps.version-check.outputs.version_bump == 'true'
+        id: release-notes
+        run: |
+          VERSION="${{ steps.version-check.outputs.current_version }}"
+          PACKAGE_NAME="${{ steps.version-check.outputs.package_name }}"
+
+          # Get commit since last tag (if any)
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$LAST_TAG" ]; then
+            COMMITS=$(git log $LAST_TAG..HEAD --oneline --no-merges)
+          else
+            COMMITS=$(git log --oneline --no-merges -10)
+          fi
+
+          cat > release_notes.md << EOF
+          ## 📦 $PACKAGE_NAME v$VERSION
+
+          ### 🔄 Changes in this release:
+          \`\`\`
+          $COMMITS
+          \`\`\`
+
+          ### 📥 Installation
+          \`\`\`bash
+          npm install $PACKAGE_NAME@$VERSION
+          # or
+          yarn add $PACKAGE_NAME@$VERSION
+          \`\`\`
+
+          ---
+          *This release was automatically generated from commit with 'bump:' prefix*
+          EOF
+
+      - name: 🚀 Create GitHub Release
+        if: steps.version-check.outputs.version_bump == 'true'
+        run: |
+          VERSION="${{ steps.version-check.outputs.current_version }}"
+          TAG_NAME="v${VERSION}"
+          PACKAGE_NAME="${{ steps.version-check.outputs.package_name }}"
+
+          gh release create $TAG_NAME \
+            --title "🚀 $PACKAGE_NAME v$VERSION" \
+            --notes-file release_notes.md \
+            --latest
+
+          echo "✅ Release $TAG_NAME created successfully"
+        env:
+          # Use PAT to ensure release triggers npm-publish workflow
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}

@@ -1,0 +1,134 @@
+name: NPM Publish
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: 🏗️ Build for Publishing
+    uses: ./.github/workflows/shared.yml
+    with:
+      upload-build: true
+
+  publish:
+    name: 📤 Publish to NPM
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for npm provenance
+    environment: npm-publish # Optional: Use GitHub Environments for additional protection
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📦 Setup Node.js for NPM
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "yarn"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: 💾 Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-build-${{ needs.build.outputs.package-version }}
+          path: lib/
+
+      - name: 📚 Install production dependencies
+        run: yarn install --frozen-lockfile --production
+
+      - name: 🔍 Verify release version
+        run: |
+          PACKAGE_VERSION="${{ needs.build.outputs.package-version }}"
+          PACKAGE_NAME="${{ needs.build.outputs.package-name }}"
+          RELEASE_TAG=${GITHUB_REF#refs/tags/}
+          RELEASE_VERSION=${RELEASE_TAG#v}
+
+          echo "📦 Package: $PACKAGE_NAME@$PACKAGE_VERSION"
+          echo "🏷️ Release: $RELEASE_TAG ($RELEASE_VERSION)"
+
+          if [ "$PACKAGE_VERSION" != "$RELEASE_VERSION" ]; then
+            echo "❌ Version mismatch:"
+            echo "   package.json: $PACKAGE_VERSION"
+            echo "   release tag:  $RELEASE_VERSION"
+            exit 1
+          fi
+
+          echo "✅ Version verification passed"
+
+      - name: 🔍 Final package verification
+        run: |
+          echo "📋 Final verification before publishing..."
+
+          # Verify package structure
+          if [ ! -d "lib" ]; then
+            echo "❌ Build directory missing"
+            exit 1
+          fi
+
+          # Check if package already exists on npm
+          PACKAGE_NAME="${{ needs.build.outputs.package-name }}"
+          PACKAGE_VERSION="${{ needs.build.outputs.package-version }}"
+
+          if npm view $PACKAGE_NAME@$PACKAGE_VERSION version 2>/dev/null; then
+            echo "⚠️  Package $PACKAGE_NAME@$PACKAGE_VERSION already exists on npm"
+            echo "❌ Cannot publish duplicate version"
+            exit 1
+          fi
+
+          echo "✅ Package $PACKAGE_NAME@$PACKAGE_VERSION is ready for publishing"
+
+          # Show what will be published
+          echo "📦 Package contents:"
+          npm pack --dry-run
+
+      - name: 📤 Publish to NPM
+        run: |
+          PACKAGE_NAME="${{ needs.build.outputs.package-name }}"
+          PACKAGE_VERSION="${{ needs.build.outputs.package-version }}"
+
+          echo "🚀 Publishing $PACKAGE_NAME@$PACKAGE_VERSION to npm..."
+
+          npm publish --access public --provenance
+
+          echo "✅ Successfully published to npm!"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🎉 Publish Success
+        run: |
+          PACKAGE_NAME="${{ needs.build.outputs.package-name }}"
+          PACKAGE_VERSION="${{ needs.build.outputs.package-version }}"
+
+          echo "🎉 Package published successfully!"
+          echo "📦 Package: $PACKAGE_NAME@$PACKAGE_VERSION"
+          echo "🔗 NPM: https://www.npmjs.com/package/$PACKAGE_NAME"
+          echo "📥 Install: npm install $PACKAGE_NAME@$PACKAGE_VERSION"
+
+      - name: 📊 Update Release with NPM Info
+        run: |
+          PACKAGE_NAME="${{ needs.build.outputs.package-name }}"
+          PACKAGE_VERSION="${{ needs.build.outputs.package-version }}"
+          RELEASE_TAG=${GITHUB_REF#refs/tags/}
+
+          # Add npm info to release
+          gh release edit $RELEASE_TAG \
+            --notes-file - << EOF
+          $(gh release view $RELEASE_TAG --json body -q .body)
+
+          ## 📤 Published to NPM
+
+          ✅ **Successfully published to npm**
+
+          📦 **Package:** [\`$PACKAGE_NAME@$PACKAGE_VERSION\`](https://www.npmjs.com/package/$PACKAGE_NAME)
+
+          📥 **Install:**
+          \`\`\`bash
+          npm install $PACKAGE_NAME@$PACKAGE_VERSION
+          \`\`\`
+          EOF
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

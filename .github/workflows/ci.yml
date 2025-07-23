@@ -1,0 +1,12 @@
+name: NPM CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  npm-ci:
+    name: 🔍 Build & Test
+    uses: ./.github/workflows/shared.yml
