@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { resolve } from 'path';
 import { createReadStream, createWriteStream } from 'fs';
 import { mapSync, split } from 'event-stream';
@@ -22,7 +23,7 @@ export function writeStream(filePath: string) {
             if (typeof data === 'object') data = JSON.stringify(data);
 
             if (!stream.write(data + '\r\n')) {
-                return new Promise((res, rej) => {
+                return new Promise((res) => {
                     stream.once('drain', () => res(data));
                 });
             } else {
@@ -44,9 +45,9 @@ export function readStream({
     const emitter = new EventEmitter();
 
     const reader = () => {
-        return new Promise<void>(async (res, rej) => {
+        return new Promise<void>(async (res) => {
             const _filePath = resolve(filePath);
-            let linesCount = await countLines(_filePath);
+            const linesCount = await countLines(_filePath);
             emitter.emit('linesCount', linesCount);
 
             let index = 0;
@@ -93,7 +94,7 @@ export function readStream({
             stream.on('error', (error) => {
                 emitter.emit('error', error);
                 emitter.removeAllListeners();
-                rej(error);
+                res();
             });
 
             stream.on('end', async () => {

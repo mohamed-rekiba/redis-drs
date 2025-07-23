@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import Redis, { Pipeline } from 'ioredis';
 import EventEmitter from 'events';
 import { readStream, writeStream } from './helpers/file';
@@ -65,15 +66,17 @@ export class RedisDRS extends Redis {
                 throw new Error(`Unknown type=${keyType}`);
         }
 
-        let [[], [, type], [, ttl], [, value]]: any[][] =
+        const [[], [, type], [, ttl], [, value]]: any[][] =
             (await p.exec()) || [];
         if (type != keyType) {
             throw new Error(`Type changed from ${keyType} to ${type}`);
         }
 
         let expireAt = -1;
-        if (this.havePttl && ttl > 0) ttl = ttl / 1000.0;
-        if (ttl > 0) expireAt = Date.now() + ttl;
+        let adjustedTtl = ttl;
+        if (this.havePttl && adjustedTtl > 0)
+            adjustedTtl = adjustedTtl / 1000.0;
+        if (adjustedTtl > 0) expireAt = Date.now() + adjustedTtl;
 
         return { type, key, ttl, expireAt, value };
     }
@@ -83,7 +86,7 @@ export class RedisDRS extends Redis {
         useTtl?: boolean,
     ): Promise<string | undefined> {
         item = await item;
-        let value = item.value;
+        const value = item.value;
         const p = <Pipeline & { multi: any }>this.pipeline();
         p.del(item.key);
 
@@ -147,7 +150,7 @@ export class RedisDRS extends Redis {
         const emitter = new EventEmitter();
 
         const getData = async () => {
-            let keys = await this.keys(pattern);
+            const keys = await this.keys(pattern);
             emitter.emit('keys', keys);
             let pool: Promise<IRedisDRS.item>[] = [];
 
@@ -196,7 +199,7 @@ export class RedisDRS extends Redis {
         });
         const pool: Promise<void>[] = [];
         let dataPool: Promise<number | IRedisDRS.item | void>[] = [];
-        let streamPool: Promise<void>[] = [];
+        const streamPool: Promise<void>[] = [];
         let resolve: () => void;
         let promise = new Promise((r) => (resolve = <typeof resolve>r));
         let done = false;
@@ -318,7 +321,7 @@ export class RedisDRS extends Redis {
         });
         const pool: Promise<void>[] = [];
         let dataPool: Promise<number | IRedisDRS.item | void>[] = [];
-        let syncPool: Promise<any>[] = [];
+        const syncPool: Promise<any>[] = [];
         let resolve: () => void;
         let promise = new Promise((r) => (resolve = <typeof resolve>r));
         let done = false;

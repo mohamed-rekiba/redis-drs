@@ -24,7 +24,7 @@ export const dump = async (options: IRedisDRS.dump) => {
     const total = (await data.next()).value as any;
     const progress = progressBar('DUMP', total);
 
-    for await (const val of data) progress?.tick();
+    for await (const _val of data) progress?.tick();
 
     redis.disconnect();
 };
@@ -42,7 +42,7 @@ export const restore = async (options: IRedisDRS.restore) => {
     const total = (await data.next()).value as number;
     const progress = progressBar('RESTORE', total);
 
-    for await (const val of data) progress?.tick();
+    for await (const _val of data) progress?.tick();
 
     redis.disconnect();
 };
@@ -61,7 +61,7 @@ export const sync = async (options: IRedisDRS.sync) => {
     const total = (await data.next()).value as any;
     const progress = progressBar('SYNC', total);
 
-    for await (const val of data) progress?.tick();
+    for await (const _val of data) progress?.tick();
 
     redis.disconnect();
 };

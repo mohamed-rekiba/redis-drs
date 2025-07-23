@@ -86,7 +86,7 @@ const _yargs = yargs(hideBin(process.argv))
         },
     })
     .demandCommand(1, 'You have to pass one command with related arguments!')
-    .check((argv, options) => {
+    .check((argv) => {
         const _commands = <string[]>argv._;
         const command = <string>_commands?.at(0);
         if (_commands.length > 1) {

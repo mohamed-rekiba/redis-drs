@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import net, { AddressInfo } from 'net';
 import { exec } from 'child_process';
 import { exit } from 'process';
@@ -15,7 +16,7 @@ const getFreePort = (): Promise<number> => {
         const srv = net.createServer();
         srv.listen(0, () => {
             const port = (<AddressInfo>srv?.address())?.port;
-            srv.close((err) => res(port));
+            srv.close(() => res(port));
         });
     });
 };

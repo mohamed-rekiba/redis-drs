@@ -45,17 +45,17 @@ describe('api endpoints', () => {
         const data = sourceRedis.restore({ filePath: dumpFile });
         const total = (await data.next()).value as number;
 
-        for await (const val of data);
+        for await (const _val of data);
         const keys = await sourceRedis.keys('*');
 
-        expect(total).toEqual(keys.length - 1);
+        expect(total).toEqual(keys.length);
     });
 
     test('Test redis dump', async () => {
         const data = sourceRedis.dump({ filePath: newDumpFile });
         const total = (await data.next()).value as number;
 
-        for await (const val of data);
+        for await (const _val of data);
         const keys = await sourceRedis.keys('*');
 
         expect(total).toEqual(keys.length);
@@ -69,7 +69,7 @@ describe('api endpoints', () => {
         });
         const total = (await data.next()).value as number;
 
-        for await (const val of data);
+        for await (const _val of data);
         const tKeys = await targetRedis.keys('*');
 
         expect(total).toEqual(tKeys.length);
