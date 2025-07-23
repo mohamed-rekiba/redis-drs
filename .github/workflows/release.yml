@@ -16,7 +16,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Allow release editing
       id-token: write # Required for npm provenance
     environment: npm-publish # Optional: Use GitHub Environments for additional protection
 
@@ -114,10 +114,12 @@ jobs:
           PACKAGE_VERSION="${{ needs.build.outputs.package-version }}"
           RELEASE_TAG=${GITHUB_REF#refs/tags/}
 
-          # Add npm info to release
-          gh release edit $RELEASE_TAG \
-            --notes-file - << EOF
-          $(gh release view $RELEASE_TAG --json body -q .body)
+          # Get current release body
+          CURRENT_BODY=$(gh release view $RELEASE_TAG --json body -q .body)
+
+          # Create new release body with npm info
+          cat > release_notes.md << EOF
+          $CURRENT_BODY
 
           ## 📤 Published to NPM
 
@@ -130,5 +132,8 @@ jobs:
           npm install $PACKAGE_NAME@$PACKAGE_VERSION
           \`\`\`
           EOF
+
+          # Update release with new notes
+          gh release edit $RELEASE_TAG --notes-file release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
