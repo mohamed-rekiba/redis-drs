@@ -1,6 +1,6 @@
 {
     "name": "redis-drs",
-    "version": "1.3.8",
+    "version": "1.3.9",
     "description": "redis-drs - A Redis Dump, Restore and Sync Tool",
     "license": "GPL-3.0+",
     "main": "./lib/index.js",
@@ -19,7 +19,7 @@
         "bundle": "node esbuild.config.js",
         "bundle:dev": "npm run esbuild -- --watch",
         "npm:login": "npm adduser",
-        "publish": "npm publish --access public",
+        "npm:publish": "npm publish --provenance --access public",
         "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\" --fix",
         "test": "jest -o --detectOpenHandles",
         "clean": "rimraf lib bundle",
@@ -39,9 +39,6 @@
     "repository": {
         "type": "git",
         "url": "git+https://github.com/mohamed-rekiba/redis-drs.git"
-    },
-    "publishConfig": {
-        "provenance": true
     },
     "dependencies": {
         "event-stream": "^4.0.1",
